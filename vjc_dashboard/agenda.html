@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VJC Technology — Agenda</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">VJC Technology</div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="servicios.html" class="nav-item"><span class="nav-icon">⚙</span> Servicios Activos</a>
+    <a href="clientes.html" class="nav-item"><span class="nav-icon">👥</span> Clientes</a>
+    <a href="ordenes.html" class="nav-item"><span class="nav-icon">📋</span> Órdenes de Trabajo</a>
+    <a href="cotizaciones.html" class="nav-item"><span class="nav-icon">💲</span> Cotizaciones</a>
+    <a href="inventario.html" class="nav-item"><span class="nav-icon">📦</span> Inventario</a>
+    <a href="agenda.html" class="nav-item active"><span class="nav-icon">📅</span> Agenda</a>
+    <a href="notas.html" class="nav-item"><span class="nav-icon">💬</span> Notas internas</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">JC</div>
+    <div><div class="user-name">Juan Colega</div><div class="user-role">Técnico</div></div>
+  </div>
+  <button class="logout-btn" onclick="vjcLogout()">
+    <span class="nav-icon">⎋</span> Cerrar sesión
+  </button>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <button class="mob-toggle" id="mobToggle" aria-label="Abrir menú">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <h1 class="page-title">Agenda</h1>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" onclick="openModal()">+ Nueva cita</button>
+    </div>
+  </header>
+
+  <div class="two-col" style="align-items:start">
+    <section class="card">
+      <div class="cal-nav">
+        <button class="cal-nav-btn" onclick="prevMes()">‹</button>
+        <span class="cal-nav-title" id="cal-title"></span>
+        <button class="cal-nav-btn" onclick="nextMes()">›</button>
+      </div>
+      <div class="cal-grid" id="cal-heads"></div>
+      <div class="cal-grid" style="margin-top:6px" id="cal-days"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h2 class="card-title" id="citas-titulo">Citas de hoy</h2></div>
+      <div id="citas-list" style="display:flex;flex-direction:column;gap:12px"></div>
+    </section>
+  </div>
+</main>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title">Nueva Cita</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="ag-titulo" placeholder="Ej: Mantenimiento de equipos"/></div>
+      <div class="form-group"><label class="form-label">Cliente</label><select class="form-select" id="ag-cliente"></select></div>
+      <div class="form-group"><label class="form-label">Servicio</label><select class="form-select" id="ag-serv"></select></div>
+      <div class="form-group"><label class="form-label">Técnico</label><select class="form-select" id="ag-tec"></select></div>
+      <div class="form-group"><label class="form-label">Fecha</label><input class="form-input" type="date" id="ag-fecha"/></div>
+      <div class="form-group"><label class="form-label">Hora</label><input class="form-input" type="time" id="ag-hora" value="09:00"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="agregarCita()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>
+const hoy = new Date();
+let viewYear = hoy.getFullYear(), viewMonth = hoy.getMonth();
+
+let citas = [];
+let clientesCache = [];
+let serviciosCache = [];
+let tecnicosCache = [];
+
+const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+const estadoBadge = { confirmada:'green', en_camino:'yellow', pendiente:'purple', cancelada:'red' };
+const estadoLabelAg = { confirmada:'Confirmada', en_camino:'En camino', pendiente:'Pendiente', cancelada:'Cancelada' };
+
+let selectedDate = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`;
+
+async function cargarCatalogos(){
+  const [{ data: cli }, { data: serv }, { data: tec }] = await Promise.all([
+    sb.from('clientes').select('id,nombre').order('nombre'),
+    sb.from('catalogo_servicios').select('id,nombre').eq('activo', true).order('nombre'),
+    sb.from('profiles').select('id,nombre').eq('rol', 'tecnico').order('nombre')
+  ]);
+  clientesCache = cli || [];
+  serviciosCache = serv || [];
+  tecnicosCache = tec || [];
+  document.getElementById('ag-cliente').innerHTML = '<option value="">Sin cliente</option>' + clientesCache.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+  document.getElementById('ag-serv').innerHTML = '<option value="">Sin servicio</option>' + serviciosCache.map(s => `<option value="${s.id}">${esc(s.nombre)}</option>`).join('');
+  document.getElementById('ag-tec').innerHTML = '<option value="">Sin asignar</option>' + tecnicosCache.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
+}
+
+async function cargarCitas(){
+  const { data, error } = await sb.from('agenda')
+    .select('*, clientes(nombre), catalogo_servicios(nombre), profiles(nombre)')
+    .order('hora_inicio');
+  if (error) { supaError(error, 'Error cargando la agenda'); return; }
+  citas = data || [];
+  renderCal();
+}
+
+function renderCal(){
+  document.getElementById('cal-title').textContent = `${meses[viewMonth]} ${viewYear}`;
+  document.getElementById('cal-heads').innerHTML = dias.map(d=>`<div class="cal-head">${d}</div>`).join('');
+  const first = new Date(viewYear,viewMonth,1).getDay();
+  const days = new Date(viewYear,viewMonth+1,0).getDate();
+  const citasDias = new Set(citas.filter(c=>c.fecha.startsWith(`${viewYear}-${String(viewMonth+1).padStart(2,'0')}`)).map(c=>parseInt(c.fecha.split('-')[2])));
+  let html = Array(first).fill('<div class="cal-day empty"></div>').join('');
+  for(let d=1;d<=days;d++){
+    const dateStr=`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday=viewYear===hoy.getFullYear()&&viewMonth===hoy.getMonth()&&d===hoy.getDate();
+    const hasCita=citasDias.has(d);
+    const isSel=dateStr===selectedDate;
+    html+=`<div class="cal-day${isToday?' today':''}${hasCita?' has-event':''}${isSel&&!isToday?' today':''}" style="${isSel&&!isToday?'background:#ede8fb;color:#9b7de0;font-weight:700':''}" onclick="selectDay('${dateStr}')">${d}</div>`;
+  }
+  document.getElementById('cal-days').innerHTML = html;
+  renderCitasDia(selectedDate);
+}
+
+function selectDay(d){ selectedDate=d; renderCal(); }
+
+function renderCitasDia(d){
+  const [y,m,day]=d.split('-');
+  document.getElementById('citas-titulo').textContent=`Citas — ${day}/${m}/${y}`;
+  const lista=citas.filter(c=>c.fecha===d);
+  document.getElementById('citas-list').innerHTML = lista.length
+    ? lista.map(c=>`
+      <div class="card" style="padding:14px 16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-weight:700;font-size:14px;color:#2d2d4e">${(c.hora_inicio||'').slice(0,5)}</span>
+          <span style="font-size:12px;color:#9b7de0">${esc(c.catalogo_servicios?.nombre || c.titulo)}</span>
+        </div>
+        <div style="font-size:13px;color:#444;margin-bottom:4px">👤 ${esc(c.clientes?.nombre || 'Sin cliente')}</div>
+        <div style="font-size:12px;color:#aaa;margin-bottom:8px">🔧 ${esc(c.profiles?.nombre || 'Sin asignar')}</div>
+        <select class="form-select" style="height:32px;font-size:11px" onchange="cambiarEstadoCita('${c.id}',this.value)">
+          <option value="pendiente" ${c.estado==='pendiente'?'selected':''}>Pendiente</option>
+          <option value="confirmada" ${c.estado==='confirmada'?'selected':''}>Confirmada</option>
+          <option value="en_camino" ${c.estado==='en_camino'?'selected':''}>En camino</option>
+          <option value="cancelada" ${c.estado==='cancelada'?'selected':''}>Cancelada</option>
+        </select>
+      </div>
+    `).join('')
+    : '<div class="empty-state">Sin citas para este día</div>';
+}
+
+function prevMes(){ if(viewMonth===0){viewMonth=11;viewYear--;}else viewMonth--; renderCal(); }
+function nextMes(){ if(viewMonth===11){viewMonth=0;viewYear++;}else viewMonth++; renderCal(); }
+function openModal(){
+  document.getElementById('ag-titulo').value = '';
+  document.getElementById('ag-cliente').value = '';
+  document.getElementById('ag-serv').value = '';
+  document.getElementById('ag-tec').value = '';
+  document.getElementById('ag-fecha').value = selectedDate;
+  document.getElementById('ag-hora').value = '09:00';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+async function agregarCita(){
+  const clienteId = document.getElementById('ag-cliente').value || null;
+  const servicioId = document.getElementById('ag-serv').value || null;
+  const clienteNombre = clientesCache.find(c=>c.id===clienteId)?.nombre;
+  const servicioNombre = serviciosCache.find(s=>s.id===servicioId)?.nombre;
+  const titulo = document.getElementById('ag-titulo').value.trim() || [servicioNombre, clienteNombre].filter(Boolean).join(' — ') || 'Cita';
+
+  const { error } = await sb.from('agenda').insert({
+    titulo,
+    cliente_id: clienteId,
+    servicio_id: servicioId,
+    tecnico_id: document.getElementById('ag-tec').value || null,
+    fecha: document.getElementById('ag-fecha').value || selectedDate,
+    hora_inicio: document.getElementById('ag-hora').value || '09:00',
+    estado: 'pendiente'
+  });
+  if (error) { supaError(error, 'Error creando la cita'); return; }
+  showToast('Cita creada');
+  closeModal();
+  cargarCitas();
+}
+
+async function cambiarEstadoCita(id, estado){
+  const { error } = await sb.from('agenda').update({ estado }).eq('id', id);
+  if (error) { supaError(error, 'No se pudo actualizar la cita'); }
+  cargarCitas();
+}
+
+(async function init(){
+  const session = await window.vjcAuthReady;
+  if (!session) return;
+  await cargarCatalogos();
+  cargarCitas();
+})();
+</script>
+
+<script>
+(function(){
+  var toggle = document.getElementById('mobToggle');
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  function openSidebar(){
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  }
+  if(toggle) toggle.addEventListener('click', openSidebar);
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+  // close on nav link click
+  var navLinks = document.querySelectorAll('.nav-item, .logout-btn');
+  navLinks.forEach(function(l){ l.addEventListener('click', closeSidebar); });
+})();
+</script>
+</body>
+</html>

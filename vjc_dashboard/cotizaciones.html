@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VJC Technology — Cotizaciones</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">VJC Technology</div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="servicios.html" class="nav-item"><span class="nav-icon">⚙</span> Servicios Activos</a>
+    <a href="clientes.html" class="nav-item"><span class="nav-icon">👥</span> Clientes</a>
+    <a href="ordenes.html" class="nav-item"><span class="nav-icon">📋</span> Órdenes de Trabajo</a>
+    <a href="cotizaciones.html" class="nav-item active"><span class="nav-icon">💲</span> Cotizaciones</a>
+    <a href="inventario.html" class="nav-item"><span class="nav-icon">📦</span> Inventario</a>
+    <a href="agenda.html" class="nav-item"><span class="nav-icon">📅</span> Agenda</a>
+    <a href="notas.html" class="nav-item"><span class="nav-icon">💬</span> Notas internas</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">JC</div>
+    <div><div class="user-name">Juan Colega</div><div class="user-role">Técnico</div></div>
+  </div>
+  <button class="logout-btn" onclick="vjcLogout()">
+    <span class="nav-icon">⎋</span> Cerrar sesión
+  </button>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <button class="mob-toggle" id="mobToggle" aria-label="Abrir menú">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <h1 class="page-title">Cotizaciones</h1>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" onclick="openModal()">+ Nueva cotización</button>
+    </div>
+  </header>
+
+  <section class="card">
+    <table class="table">
+      <thead><tr><th>#</th><th>Cliente</th><th>Servicios</th><th>Total</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr></thead>
+      <tbody id="tbody-cot"></tbody>
+    </table>
+  </section>
+</main>
+
+<!-- MODAL NUEVA COTIZACIÓN -->
+<div class="modal-overlay" id="modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">Nueva Cotización</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Cliente</label><select class="form-select" id="c-cliente"></select></div>
+      <div class="form-group"><label class="form-label">Válido hasta</label><input class="form-input" type="date" id="c-valida"/></div>
+    </div>
+    <div class="form-label" style="margin-bottom:10px">Servicios</div>
+    <div id="items-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+    <button class="btn btn-secondary btn-sm" onclick="addItem()" style="margin-bottom:16px">+ Agregar servicio</button>
+    <div style="display:flex;justify-content:flex-end;align-items:center;gap:12px">
+      <span style="font-size:14px;color:#aaa">Total:</span>
+      <span id="total-label" style="font-size:20px;font-weight:800;color:#9b7de0">S/ 0.00</span>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCot()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" id="det-numero"></div>
+    <div style="font-size:13px;color:#666;margin-bottom:4px">Cliente: <strong id="det-cliente" style="color:#2d2d4e"></strong></div>
+    <div style="font-size:13px;color:#666;margin-bottom:16px">Estado: <span id="det-estado"></span></div>
+    <div id="det-items" style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px"></div>
+    <div style="text-align:right;font-size:16px;font-weight:800;color:#9b7de0;margin-bottom:18px" id="det-total"></div>
+    <div class="modal-footer" style="flex-wrap:wrap">
+      <button class="btn btn-danger" onclick="eliminarCotActual()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeDetalle()">Cerrar</button>
+      <button class="btn btn-secondary" onclick="cambiarEstadoCot('rechazada')">Rechazar</button>
+      <button class="btn btn-secondary" onclick="cambiarEstadoCot('enviada')">Marcar enviada</button>
+      <button class="btn btn-primary" onclick="cambiarEstadoCot('aceptada')">Marcar aceptada</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>
+let cotizaciones = [];
+let clientesCache = [];
+let catalogoCache = [];
+let cotActualId = null;
+
+const estCot = { aceptada:'green', pendiente:'yellow', enviada:'blue', rechazada:'red' };
+const estLabel = { aceptada:'Aceptada', pendiente:'Pendiente', enviada:'Enviada', rechazada:'Rechazada' };
+
+async function cargarCatalogos(){
+  const [{ data: cli }, { data: cat }] = await Promise.all([
+    sb.from('clientes').select('id,nombre').order('nombre'),
+    sb.from('catalogo_servicios').select('id,nombre,precio_base').eq('activo', true).order('nombre')
+  ]);
+  clientesCache = cli || [];
+  catalogoCache = cat || [];
+  document.getElementById('c-cliente').innerHTML = clientesCache.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('') || '<option value="">Sin clientes</option>';
+}
+
+async function cargarCot(){
+  const { data, error } = await sb.from('cotizaciones')
+    .select('*, clientes(nombre), cotizacion_items(id,descripcion,cantidad,precio_unitario)')
+    .order('created_at', { ascending: false });
+  if (error) { supaError(error, 'Error cargando cotizaciones'); return; }
+  cotizaciones = data || [];
+  renderCot();
+}
+
+function renderCot(){
+  const tbody = document.getElementById('tbody-cot');
+  if (!cotizaciones.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Sin cotizaciones todavía</div></td></tr>'; return; }
+  tbody.innerHTML = cotizaciones.map(c=>`
+    <tr>
+      <td style="color:#9b7de0;font-weight:700">${esc(c.numero_cotizacion || '—')}</td>
+      <td>${esc(c.clientes?.nombre || 'Cliente eliminado')}</td>
+      <td style="font-size:12px;color:#888">${(c.cotizacion_items||[]).map(i=>esc(i.descripcion)).join(', ')}</td>
+      <td style="font-weight:700;color:#2d2d4e">S/ ${Number(c.monto||0).toFixed(2)}</td>
+      <td><span class="badge ${estCot[c.estado]}">${estLabel[c.estado]||c.estado}</span></td>
+      <td>${formatDate(c.created_at)}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="verDetalle('${c.id}')">Ver</button></td>
+    </tr>
+  `).join('');
+}
+
+let tempItems = [];
+function openModal(){
+  tempItems = catalogoCache.length ? [{ s: catalogoCache[0].nombre, p: Number(catalogoCache[0].precio_base)||0, c: 1 }] : [{ s:'Servicio', p:0, c:1 }];
+  document.getElementById('c-valida').value = '';
+  renderItems();
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+function renderItems(){
+  document.getElementById('items-list').innerHTML = tempItems.map((it,i)=>`
+    <div style="display:flex;gap:8px;align-items:center">
+      <select class="form-select" style="flex:1" onchange="changeItem(${i},this.value)">
+        ${catalogoCache.map(s=>`<option value="${esc(s.nombre)}" ${s.nombre===it.s?'selected':''}>${esc(s.nombre)}</option>`).join('')}
+      </select>
+      <input class="form-input" style="width:60px" type="number" min="1" value="${it.c}" title="Cantidad" onchange="changeQty(${i},this.value)"/>
+      <input class="form-input" style="width:100px" type="number" step="0.01" value="${it.p}" title="Precio unitario" onchange="changePrice(${i},this.value)"/>
+      <button class="btn btn-danger btn-sm" onclick="removeItem(${i})">✕</button>
+    </div>
+  `).join('');
+  updateTotal();
+}
+
+function addItem(){
+  const first = catalogoCache[0];
+  tempItems.push({ s: first?.nombre || 'Servicio', p: Number(first?.precio_base)||0, c: 1 });
+  renderItems();
+}
+function removeItem(i){ tempItems.splice(i,1); renderItems(); }
+function changeItem(i,v){ tempItems[i].s=v; const s=catalogoCache.find(x=>x.nombre===v); tempItems[i].p = s ? Number(s.precio_base)||0 : tempItems[i].p; renderItems(); }
+function changeQty(i,v){ tempItems[i].c = Math.max(1, parseInt(v)||1); updateTotal(); }
+function changePrice(i,v){ tempItems[i].p=parseFloat(v)||0; updateTotal(); }
+function updateTotal(){
+  const t = tempItems.reduce((a,b)=>a+b.p*b.c,0);
+  document.getElementById('total-label').textContent = 'S/ '+t.toFixed(2);
+}
+
+async function guardarCot(){
+  const clienteId = document.getElementById('c-cliente').value;
+  if (!clienteId) { showToast('Selecciona un cliente (crea uno primero en Clientes)', true); return; }
+  if (!tempItems.length) { showToast('Agrega al menos un servicio', true); return; }
+  const total = tempItems.reduce((a,b)=>a+b.p*b.c,0);
+
+  const { data: cot, error } = await sb.from('cotizaciones').insert({
+    cliente_id: clienteId,
+    estado: 'pendiente',
+    monto: total,
+    valida_hasta: document.getElementById('c-valida').value || null
+  }).select().single();
+  if (error) { supaError(error, 'Error creando la cotización'); return; }
+
+  const { error: errItems } = await sb.from('cotizacion_items').insert(
+    tempItems.map(it => ({ cotizacion_id: cot.id, descripcion: it.s, cantidad: it.c, precio_unitario: it.p }))
+  );
+  if (errItems) { supaError(errItems, 'Cotización creada pero fallaron los items'); }
+
+  showToast('Cotización creada');
+  closeModal();
+  cargarCot();
+}
+
+function verDetalle(id){
+  const c = cotizaciones.find(x => x.id === id);
+  if (!c) return;
+  cotActualId = id;
+  document.getElementById('det-numero').textContent = c.numero_cotizacion || 'Cotización';
+  document.getElementById('det-cliente').textContent = c.clientes?.nombre || 'Cliente eliminado';
+  document.getElementById('det-estado').innerHTML = `<span class="badge ${estCot[c.estado]}">${estLabel[c.estado]||c.estado}</span>`;
+  document.getElementById('det-items').innerHTML = (c.cotizacion_items||[]).map(i => `
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:#444;background:#f9f8fd;border-radius:8px;padding:8px 12px">
+      <span>${esc(i.descripcion)} × ${i.cantidad}</span><span>S/ ${(Number(i.precio_unitario)*Number(i.cantidad)).toFixed(2)}</span>
+    </div>
+  `).join('') || '<div class="empty-state">Sin items</div>';
+  document.getElementById('det-total').textContent = 'Total: S/ ' + Number(c.monto||0).toFixed(2);
+  document.getElementById('modal-detalle').classList.add('open');
+}
+function closeDetalle(){ document.getElementById('modal-detalle').classList.remove('open'); }
+
+async function cambiarEstadoCot(estado){
+  if (!cotActualId) return;
+  const { error } = await sb.from('cotizaciones').update({ estado }).eq('id', cotActualId);
+  if (error) { supaError(error, 'No se pudo actualizar el estado'); return; }
+  showToast('Cotización actualizada');
+  document.getElementById('modal-detalle').classList.remove('open');
+  cargarCot();
+}
+
+async function eliminarCotActual(){
+  if (!cotActualId) return;
+  if (!confirm('¿Eliminar esta cotización?')) return;
+  const { error } = await sb.from('cotizaciones').delete().eq('id', cotActualId);
+  if (error) { supaError(error, 'No se pudo eliminar'); return; }
+  showToast('Cotización eliminada');
+  document.getElementById('modal-detalle').classList.remove('open');
+  cargarCot();
+}
+
+(async function init(){
+  const session = await window.vjcAuthReady;
+  if (!session) return;
+  await cargarCatalogos();
+  cargarCot();
+})();
+</script>
+
+<script>
+(function(){
+  var toggle = document.getElementById('mobToggle');
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  function openSidebar(){
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  }
+  if(toggle) toggle.addEventListener('click', openSidebar);
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+  // close on nav link click
+  var navLinks = document.querySelectorAll('.nav-item, .logout-btn');
+  navLinks.forEach(function(l){ l.addEventListener('click', closeSidebar); });
+})();
+</script>
+</body>
+</html>

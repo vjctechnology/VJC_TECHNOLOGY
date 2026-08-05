@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VJC Technology — Servicios Activos</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+
+<aside class="sidebar">
+  <div class="sidebar-logo">VJC Technology</div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="servicios.html" class="nav-item active"><span class="nav-icon">⚙</span> Servicios Activos</a>
+    <a href="clientes.html" class="nav-item"><span class="nav-icon">👥</span> Clientes</a>
+    <a href="ordenes.html" class="nav-item"><span class="nav-icon">📋</span> Órdenes de Trabajo</a>
+    <a href="cotizaciones.html" class="nav-item"><span class="nav-icon">💲</span> Cotizaciones</a>
+    <a href="inventario.html" class="nav-item"><span class="nav-icon">📦</span> Inventario</a>
+    <a href="agenda.html" class="nav-item"><span class="nav-icon">📅</span> Agenda</a>
+    <a href="notas.html" class="nav-item"><span class="nav-icon">💬</span> Notas internas</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">JC</div>
+    <div><div class="user-name">Juan Colega</div><div class="user-role">Técnico</div></div>
+  </div>
+  <button class="logout-btn" onclick="vjcLogout()">
+    <span class="nav-icon">⎋</span> Cerrar sesión
+  </button>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <button class="mob-toggle" id="mobToggle" aria-label="Abrir menú">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <h1 class="page-title">Servicios Activos</h1>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" onclick="openModal()">+ Nuevo servicio</button>
+    </div>
+  </header>
+
+  <div class="search-bar">
+    <input class="search-input" type="text" placeholder="Buscar por cliente, servicio o técnico..." oninput="filtrar(this.value)"/>
+    <select class="form-select" style="width:150px" onchange="filtrarEstado(this.value)">
+      <option value="">Todos los estados</option>
+      <option value="pendiente">Pendiente</option>
+      <option value="proceso">En proceso</option>
+      <option value="completado">Completado</option>
+    </select>
+  </div>
+
+  <section class="card">
+    <table class="table" id="tabla-servicios">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Cliente</th>
+          <th>Servicio</th>
+          <th>Técnico</th>
+          <th>Estado</th>
+          <th>Fecha entrega</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tbody-servicios"></tbody>
+    </table>
+  </section>
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-titulo">Nuevo Servicio</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Cliente</label><select class="form-select" id="s-cliente"></select></div>
+      <div class="form-group"><label class="form-label">Tipo de servicio</label><select class="form-select" id="s-tipo"></select></div>
+      <div class="form-group"><label class="form-label">Técnico asignado</label><select class="form-select" id="s-tec"></select></div>
+      <div class="form-group"><label class="form-label">Fecha de entrega</label><input class="form-input" type="date" id="s-fecha"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Estado</label>
+      <select class="form-select" id="s-estado">
+        <option value="pendiente">Pendiente</option>
+        <option value="en_camino">En camino</option>
+        <option value="en_proceso">En proceso</option>
+        <option value="completada">Completado</option>
+        <option value="cancelada">Cancelado</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarServicio()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>
+let serviciosData = [];
+let clientesCache = [];
+let catalogoCache = [];
+let tecnicosCache = [];
+let editandoId = null;
+
+const estadoLabel = { pendiente:'Pendiente', en_camino:'En camino', en_proceso:'En proceso', completada:'Completado', cancelada:'Cancelado' };
+const estadoClass = { pendiente:'yellow', en_camino:'yellow', en_proceso:'blue', completada:'green', cancelada:'red' };
+
+async function cargarCatalogos(){
+  const [{ data: cli }, { data: cat }, { data: tec }] = await Promise.all([
+    sb.from('clientes').select('id,nombre').order('nombre'),
+    sb.from('catalogo_servicios').select('id,nombre').eq('activo', true).order('nombre'),
+    sb.from('profiles').select('id,nombre').eq('rol', 'tecnico').order('nombre')
+  ]);
+  clientesCache = cli || [];
+  catalogoCache = cat || [];
+  tecnicosCache = tec || [];
+  document.getElementById('s-cliente').innerHTML = clientesCache.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('') || '<option value="">Sin clientes</option>';
+  document.getElementById('s-tipo').innerHTML = catalogoCache.map(s => `<option value="${s.id}">${esc(s.nombre)}</option>`).join('') || '<option value="">Sin servicios</option>';
+  document.getElementById('s-tec').innerHTML = '<option value="">Sin asignar</option>' + tecnicosCache.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
+}
+
+async function cargarServicios(){
+  const { data, error } = await sb.from('servicios_activos')
+    .select('*, clientes(nombre), catalogo_servicios(nombre), profiles(nombre)')
+    .order('created_at', { ascending: false });
+  if (error) { supaError(error, 'Error cargando servicios activos'); return; }
+  serviciosData = data || [];
+  aplicarFiltros();
+}
+
+function renderTabla(data) {
+  const tbody = document.getElementById('tbody-servicios');
+  if (!data.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Sin resultados</div></td></tr>'; return; }
+  tbody.innerHTML = data.map(s => `
+    <tr>
+      <td style="color:#9b7de0;font-weight:700">S-${s.id.slice(0,8)}</td>
+      <td>${esc(s.clientes?.nombre || 'Cliente eliminado')}</td>
+      <td>${esc(s.catalogo_servicios?.nombre || '-')}</td>
+      <td>${esc(s.profiles?.nombre || 'Sin asignar')}</td>
+      <td><span class="badge ${estadoClass[s.estado]}">${estadoLabel[s.estado]||s.estado}</span></td>
+      <td>${s.fecha_fin ? formatDate(s.fecha_fin) : '-'}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="editarServicio('${s.id}')">Ver</button></td>
+    </tr>
+  `).join('');
+}
+
+let filtroTexto='', filtroEstado='';
+function filtrar(v){ filtroTexto=v.toLowerCase(); aplicarFiltros(); }
+function filtrarEstado(v){ filtroEstado=v; aplicarFiltros(); }
+function aplicarFiltros(){
+  let r = serviciosData.filter(s => {
+    const cliente=(s.clientes?.nombre||'').toLowerCase(), servicio=(s.catalogo_servicios?.nombre||'').toLowerCase(), tecnico=(s.profiles?.nombre||'').toLowerCase();
+    return (!filtroTexto || cliente.includes(filtroTexto) || servicio.includes(filtroTexto) || tecnico.includes(filtroTexto)) &&
+           (!filtroEstado || s.estado===filtroEstado);
+  });
+  renderTabla(r);
+}
+
+function openModal(){
+  editandoId = null;
+  document.getElementById('modal-titulo').textContent = 'Nuevo Servicio';
+  document.getElementById('s-cliente').selectedIndex = 0;
+  document.getElementById('s-tipo').selectedIndex = 0;
+  document.getElementById('s-tec').value = '';
+  document.getElementById('s-fecha').value = '';
+  document.getElementById('s-estado').value = 'pendiente';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+function editarServicio(id){
+  const s = serviciosData.find(x => x.id === id);
+  if (!s) return;
+  editandoId = id;
+  document.getElementById('modal-titulo').textContent = 'Editar Servicio';
+  document.getElementById('s-cliente').value = s.cliente_id || '';
+  document.getElementById('s-tipo').value = s.servicio_id || '';
+  document.getElementById('s-tec').value = s.tecnico_id || '';
+  document.getElementById('s-fecha').value = s.fecha_fin ? String(s.fecha_fin).split('T')[0] : '';
+  document.getElementById('s-estado').value = s.estado || 'pendiente';
+  document.getElementById('modal').classList.add('open');
+}
+
+async function guardarServicio(){
+  const clienteId = document.getElementById('s-cliente').value;
+  const servicioId = document.getElementById('s-tipo').value;
+  if (!clienteId || !servicioId) { showToast('Selecciona cliente y servicio (créalos primero si no existen)', true); return; }
+  const payload = {
+    cliente_id: clienteId,
+    servicio_id: servicioId,
+    tecnico_id: document.getElementById('s-tec').value || null,
+    fecha_fin: document.getElementById('s-fecha').value || null,
+    estado: document.getElementById('s-estado').value
+  };
+
+  const query = editandoId
+    ? sb.from('servicios_activos').update(payload).eq('id', editandoId)
+    : sb.from('servicios_activos').insert(payload);
+  const { error } = await query;
+  if (error) { supaError(error, 'Error guardando el servicio'); return; }
+
+  showToast(editandoId ? 'Servicio actualizado' : 'Servicio creado');
+  closeModal();
+  cargarServicios();
+}
+
+(async function init(){
+  const session = await window.vjcAuthReady;
+  if (!session) return;
+  await cargarCatalogos();
+  cargarServicios();
+})();
+</script>
+
+<script>
+(function(){
+  var toggle = document.getElementById('mobToggle');
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  function openSidebar(){
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  }
+  if(toggle) toggle.addEventListener('click', openSidebar);
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+  // close on nav link click
+  var navLinks = document.querySelectorAll('.nav-item, .logout-btn');
+  navLinks.forEach(function(l){ l.addEventListener('click', closeSidebar); });
+})();
+</script>
+</body>
+</html>

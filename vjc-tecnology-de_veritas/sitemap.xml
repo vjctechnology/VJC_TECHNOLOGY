@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- TODO: reemplazar https://www.example.com por el dominio real antes de publicar -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://www.example.com/index.html</loc><priority>1.0</priority></url>
+  <url><loc>https://www.example.com/nuestra-empresa.html</loc><priority>0.7</priority></url>
+  <url><loc>https://www.example.com/servicios.html</loc><priority>0.9</priority></url>
+  <url><loc>https://www.example.com/soluciones.html</loc><priority>0.7</priority></url>
+  <url><loc>https://www.example.com/catalogo.html</loc><priority>0.7</priority></url>
+  <url><loc>https://www.example.com/ciberseguridad.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/contactos.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/blog.html</loc><priority>0.6</priority></url>
+  <url><loc>https://www.example.com/1_soporte-tecnico.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/2_desarrollo-web.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/3_licencias-software.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/4_instalacion-software.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/5_ciberseguridad-servicio.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/6_mantenimiento-equipos.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/7_capacitacion-tecnologica.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/8_instalacion-sistemas-operativos.html</loc><priority>0.8</priority></url>
+  <url><loc>https://www.example.com/blog-art1.html</loc><priority>0.5</priority></url>
+  <url><loc>https://www.example.com/blog-art2.html</loc><priority>0.5</priority></url>
+  <url><loc>https://www.example.com/blog-art3.html</loc><priority>0.5</priority></url>
+  <url><loc>https://www.example.com/blog-art4.html</loc><priority>0.5</priority></url>
+  <url><loc>https://www.example.com/blog-art5.html</loc><priority>0.5</priority></url>
+  <url><loc>https://www.example.com/blog-art6.html</loc><priority>0.5</priority></url>
+</urlset>

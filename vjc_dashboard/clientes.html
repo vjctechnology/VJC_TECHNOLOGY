@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VJC Technology — Clientes</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+
+<aside class="sidebar">
+  <div class="sidebar-logo">VJC Technology</div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="servicios.html" class="nav-item"><span class="nav-icon">⚙</span> Servicios Activos</a>
+    <a href="clientes.html" class="nav-item active"><span class="nav-icon">👥</span> Clientes</a>
+    <a href="ordenes.html" class="nav-item"><span class="nav-icon">📋</span> Órdenes de Trabajo</a>
+    <a href="cotizaciones.html" class="nav-item"><span class="nav-icon">💲</span> Cotizaciones</a>
+    <a href="inventario.html" class="nav-item"><span class="nav-icon">📦</span> Inventario</a>
+    <a href="agenda.html" class="nav-item"><span class="nav-icon">📅</span> Agenda</a>
+    <a href="notas.html" class="nav-item"><span class="nav-icon">💬</span> Notas internas</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">JC</div>
+    <div><div class="user-name">Juan Colega</div><div class="user-role">Técnico</div></div>
+  </div>
+  <button class="logout-btn" onclick="vjcLogout()">
+    <span class="nav-icon">⎋</span> Cerrar sesión
+  </button>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <button class="mob-toggle" id="mobToggle" aria-label="Abrir menú">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <h1 class="page-title">Clientes</h1>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" onclick="openModal()">+ Nuevo cliente</button>
+    </div>
+  </header>
+
+  <div class="search-bar">
+    <input class="search-input" type="text" placeholder="Buscar cliente..." oninput="filtrar(this.value)"/>
+  </div>
+
+  <div id="clientes-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;"></div>
+</main>
+
+<!-- MODAL NUEVO/EDITAR CLIENTE -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-titulo">Nuevo Cliente</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Nombre</label><input class="form-input" id="inp-nombre" placeholder="Luis Paredes"/></div>
+      <div class="form-group"><label class="form-label">Empresa</label><input class="form-input" id="inp-empresa" placeholder="Empresa Sol SAC"/></div>
+      <div class="form-group"><label class="form-label">Teléfono</label><input class="form-input" id="inp-tel" placeholder="999 999 999"/></div>
+      <div class="form-group"><label class="form-label">Correo</label><input class="form-input" id="inp-email" placeholder="cliente@empresa.com"/></div>
+      <div class="form-group" style="grid-column:1/-1"><label class="form-label">Dirección</label><input class="form-input" id="inp-direccion" placeholder="Av. Siempre Viva 123"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Notas internas</label><textarea class="form-textarea" id="inp-notas" placeholder="Observaciones del cliente..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCliente()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALLE CLIENTE -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title" id="det-nombre"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin-bottom:18px">
+      <div><div class="form-label">Empresa</div><div id="det-empresa" style="font-size:13px;color:#444"></div></div>
+      <div><div class="form-label">Teléfono</div><div id="det-tel" style="font-size:13px;color:#444"></div></div>
+      <div><div class="form-label">Correo</div><div id="det-email" style="font-size:13px;color:#9b7de0"></div></div>
+      <div><div class="form-label">Servicios realizados</div><div id="det-servicios" style="font-size:13px;color:#444"></div></div>
+      <div style="grid-column:1/-1"><div class="form-label">Dirección</div><div id="det-direccion" style="font-size:13px;color:#444"></div></div>
+    </div>
+    <div class="form-label" style="margin-bottom:6px">Notas</div>
+    <div id="det-notas" style="font-size:13px;color:#666;background:#f9f8fd;border-radius:9px;padding:12px 14px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="btn-eliminar-cliente" onclick="eliminarClienteActual()">Eliminar</button>
+      <button class="btn btn-secondary" onclick="closeDetalle()">Cerrar</button>
+      <button class="btn btn-primary" onclick="editarClienteActual()">Editar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>
+let clientes = [];
+let clienteActualId = null;
+let editandoId = null;
+
+const initials = n => (n || '?').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const colors = ['#9b7de0','#5ec98b','#f0b429','#e85959','#2471a3','#7a9ab5'];
+
+async function cargarClientes(){
+  const { data: filas, error } = await sb.from('clientes').select('*').order('created_at', { ascending: false });
+  if (error) { supaError(error, 'Error cargando clientes'); return; }
+
+  const { data: ordenes } = await sb.from('ordenes_trabajo').select('cliente_id');
+  const conteo = {};
+  (ordenes || []).forEach(o => { conteo[o.cliente_id] = (conteo[o.cliente_id] || 0) + 1; });
+
+  clientes = (filas || []).map(c => ({ ...c, servicios: conteo[c.id] || 0 }));
+  aplicarFiltro();
+}
+
+let filtroActual = '';
+function renderClientes(data) {
+  const grid = document.getElementById('clientes-grid');
+  if (!data.length) { grid.innerHTML = '<div class="empty-state">Sin clientes todavía.</div>'; return; }
+  grid.innerHTML = data.map((c,i) => `
+    <div class="card" style="cursor:pointer" onclick="verDetalle('${c.id}')">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        <div style="width:42px;height:42px;border-radius:50%;background:${colors[i%colors.length]}22;color:${colors[i%colors.length]};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">${esc(initials(c.nombre))}</div>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:#2d2d4e">${esc(c.nombre)}</div>
+          <div style="font-size:12px;color:#aaa">${esc(c.empresa || '-')}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <div style="font-size:12px;color:#7a9ab5">📞 ${esc(c.telefono || '-')}</div>
+        <div style="font-size:12px;color:#9b7de0">✉ ${esc(c.email || '-')}</div>
+        <div style="font-size:12px;color:#aaa;margin-top:6px">Servicios realizados: <strong style="color:#2d2d4e">${c.servicios}</strong></div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filtrar(v){ filtroActual = v.toLowerCase(); aplicarFiltro(); }
+function aplicarFiltro(){
+  const q = filtroActual;
+  renderClientes(!q ? clientes : clientes.filter(c =>
+    c.nombre.toLowerCase().includes(q) || (c.empresa||'').toLowerCase().includes(q)
+  ));
+}
+
+function openModal(){
+  editandoId = null;
+  document.getElementById('modal-titulo').textContent = 'Nuevo Cliente';
+  ['inp-nombre','inp-empresa','inp-tel','inp-email','inp-direccion','inp-notas'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+async function guardarCliente(){
+  const payload = {
+    nombre: document.getElementById('inp-nombre').value.trim() || 'Nuevo cliente',
+    empresa: document.getElementById('inp-empresa').value.trim() || null,
+    telefono: document.getElementById('inp-tel').value.trim() || null,
+    email: document.getElementById('inp-email').value.trim() || null,
+    direccion: document.getElementById('inp-direccion').value.trim() || null,
+    notas: document.getElementById('inp-notas').value.trim() || null
+  };
+
+  const query = editandoId
+    ? sb.from('clientes').update(payload).eq('id', editandoId)
+    : sb.from('clientes').insert(payload);
+  const { error } = await query;
+  if (error) { supaError(error, 'Error guardando cliente'); return; }
+
+  showToast(editandoId ? 'Cliente actualizado' : 'Cliente creado');
+  closeModal();
+  cargarClientes();
+}
+
+function verDetalle(id){
+  const c = clientes.find(x => x.id === id);
+  if (!c) return;
+  clienteActualId = id;
+  document.getElementById('det-nombre').textContent = c.nombre;
+  document.getElementById('det-empresa').textContent = c.empresa || '-';
+  document.getElementById('det-tel').textContent = c.telefono || '-';
+  document.getElementById('det-email').textContent = c.email || '-';
+  document.getElementById('det-direccion').textContent = c.direccion || '-';
+  document.getElementById('det-servicios').textContent = c.servicios;
+  document.getElementById('det-notas').textContent = c.notas || 'Sin notas.';
+  document.getElementById('modal-detalle').classList.add('open');
+}
+function closeDetalle(){ document.getElementById('modal-detalle').classList.remove('open'); }
+
+function editarClienteActual(){
+  const c = clientes.find(x => x.id === clienteActualId);
+  if (!c) return;
+  editandoId = c.id;
+  document.getElementById('modal-titulo').textContent = 'Editar Cliente';
+  document.getElementById('inp-nombre').value = c.nombre || '';
+  document.getElementById('inp-empresa').value = c.empresa || '';
+  document.getElementById('inp-tel').value = c.telefono || '';
+  document.getElementById('inp-email').value = c.email || '';
+  document.getElementById('inp-direccion').value = c.direccion || '';
+  document.getElementById('inp-notas').value = c.notas || '';
+  closeDetalle();
+  document.getElementById('modal').classList.add('open');
+}
+
+async function eliminarClienteActual(){
+  if (!clienteActualId) return;
+  if (!confirm('¿Eliminar este cliente? Esta acción no se puede deshacer.')) return;
+  const { error } = await sb.from('clientes').delete().eq('id', clienteActualId);
+  if (error) { supaError(error, 'No se pudo eliminar (puede requerir rol admin)'); return; }
+  showToast('Cliente eliminado');
+  closeDetalle();
+  cargarClientes();
+}
+
+(async function init(){
+  const session = await window.vjcAuthReady;
+  if (!session) return;
+  cargarClientes();
+})();
+</script>
+
+<script>
+(function(){
+  var toggle = document.getElementById('mobToggle');
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  function openSidebar(){
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  }
+  if(toggle) toggle.addEventListener('click', openSidebar);
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+  // close on nav link click
+  var navLinks = document.querySelectorAll('.nav-item, .logout-btn');
+  navLinks.forEach(function(l){ l.addEventListener('click', closeSidebar); });
+})();
+</script>
+</body>
+</html>

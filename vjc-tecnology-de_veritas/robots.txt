@@ -1,0 +1,6 @@
+# TODO: reemplazar https://www.example.com por el dominio real antes de publicar
+User-agent: *
+Allow: /
+Disallow: /vjc_login.html
+
+Sitemap: https://www.example.com/sitemap.xml

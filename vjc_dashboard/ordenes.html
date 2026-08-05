@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VJC Technology — Órdenes de Trabajo</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">VJC Technology</div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="servicios.html" class="nav-item"><span class="nav-icon">⚙</span> Servicios Activos</a>
+    <a href="clientes.html" class="nav-item"><span class="nav-icon">👥</span> Clientes</a>
+    <a href="ordenes.html" class="nav-item active"><span class="nav-icon">📋</span> Órdenes de Trabajo</a>
+    <a href="cotizaciones.html" class="nav-item"><span class="nav-icon">💲</span> Cotizaciones</a>
+    <a href="inventario.html" class="nav-item"><span class="nav-icon">📦</span> Inventario</a>
+    <a href="agenda.html" class="nav-item"><span class="nav-icon">📅</span> Agenda</a>
+    <a href="notas.html" class="nav-item"><span class="nav-icon">💬</span> Notas internas</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">JC</div>
+    <div><div class="user-name">Juan Colega</div><div class="user-role">Técnico</div></div>
+  </div>
+  <button class="logout-btn" onclick="vjcLogout()">
+    <span class="nav-icon">⎋</span> Cerrar sesión
+  </button>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <button class="mob-toggle" id="mobToggle" aria-label="Abrir menú">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <h1 class="page-title">Órdenes de Trabajo</h1>
+    <div class="topbar-actions">
+      <button class="btn btn-primary" onclick="openModal()">+ Nueva orden</button>
+    </div>
+  </header>
+
+  <!-- Kanban -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge yellow" style="font-size:12px">Pendiente</span>
+        <span style="font-size:12px;color:#aaa" id="cnt-pendiente"></span>
+      </div>
+      <div id="col-pendiente" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge blue" style="font-size:12px">En proceso</span>
+        <span style="font-size:12px;color:#aaa" id="cnt-proceso"></span>
+      </div>
+      <div id="col-proceso" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+    <div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span class="badge green" style="font-size:12px">Completado</span>
+        <span style="font-size:12px;color:#aaa" id="cnt-completado"></span>
+      </div>
+      <div id="col-completado" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+  </div>
+</main>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-title" id="modal-titulo">Nueva Orden de Trabajo</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-label">Cliente</label>
+        <select class="form-select" id="o-cliente"></select>
+      </div>
+      <div class="form-group"><label class="form-label">Tipo de servicio</label>
+        <select class="form-select" id="o-tipo"></select>
+      </div>
+      <div class="form-group"><label class="form-label">Técnico</label>
+        <select class="form-select" id="o-tec"></select>
+      </div>
+      <div class="form-group"><label class="form-label">Prioridad</label>
+        <select class="form-select" id="o-prio">
+          <option value="urgente">Urgente</option><option value="alta">Alta</option><option value="normal" selected>Normal</option><option value="baja">Baja</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Fecha entrega</label><input class="form-input" type="date" id="o-fecha"/></div>
+      <div class="form-group"><label class="form-label">Monto (S/)</label><input class="form-input" type="number" step="0.01" id="o-monto" placeholder="0.00"/></div>
+    </div>
+    <div class="form-group"><label class="form-label">Descripción</label><textarea class="form-textarea" id="o-desc" placeholder="Detalle del trabajo..."></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarOrden()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>
+let ordenes = [];
+let clientesCache = [];
+let serviciosCache = [];
+let tecnicosCache = [];
+let editandoId = null;
+
+const prioClass = {urgente:'prio-alta',alta:'prio-alta',normal:'prio-media',baja:'prio-baja'};
+const prioLabel = {urgente:'⚠ Urgente',alta:'↑ Alta',normal:'→ Normal',baja:'↓ Baja'};
+const estColMap = { pendiente: 'pendiente', en_camino: 'proceso', en_proceso: 'proceso', completada: 'completado', cancelada: 'completado' };
+
+async function cargarCatalogos(){
+  const [{ data: cli }, { data: serv }, { data: tec }] = await Promise.all([
+    sb.from('clientes').select('id,nombre').order('nombre'),
+    sb.from('catalogo_servicios').select('id,nombre').eq('activo', true).order('nombre'),
+    sb.from('profiles').select('id,nombre').eq('rol', 'tecnico').order('nombre')
+  ]);
+  clientesCache = cli || [];
+  serviciosCache = serv || [];
+  tecnicosCache = tec || [];
+  document.getElementById('o-cliente').innerHTML = clientesCache.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('') || '<option value="">Sin clientes</option>';
+  document.getElementById('o-tipo').innerHTML = serviciosCache.map(s => `<option value="${s.id}">${esc(s.nombre)}</option>`).join('') || '<option value="">Sin servicios</option>';
+  document.getElementById('o-tec').innerHTML = '<option value="">Sin asignar</option>' + tecnicosCache.map(t => `<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
+}
+
+async function cargarOrdenes(){
+  const { data, error } = await sb.from('ordenes_trabajo')
+    .select('*, clientes(nombre), catalogo_servicios(nombre), profiles(nombre)')
+    .order('created_at', { ascending: false });
+  if (error) { supaError(error, 'Error cargando órdenes'); return; }
+  ordenes = data || [];
+  renderKanban();
+}
+
+function renderKanban(){
+  const cols = { pendiente: [], proceso: [], completado: [] };
+  ordenes.forEach(o => cols[estColMap[o.estado] || 'pendiente'].push(o));
+
+  Object.keys(cols).forEach(est=>{
+    const items = cols[est];
+    document.getElementById('cnt-'+est).textContent = items.length+' orden'+(items.length!==1?'es':'');
+    document.getElementById('col-'+est).innerHTML = items.length ? items.map(o=>`
+      <div class="card" style="padding:16px 18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:11px;color:#9b7de0;font-weight:700">${esc(o.numero_orden || '—')}</span>
+          <span class="${prioClass[o.prioridad]}" style="font-size:11px">${prioLabel[o.prioridad]||o.prioridad}</span>
+        </div>
+        <div style="font-weight:700;font-size:13.5px;color:#2d2d4e;margin-bottom:4px">${esc(o.clientes?.nombre || 'Cliente eliminado')}</div>
+        <div style="font-size:12px;color:#9b7de0;margin-bottom:6px">${esc(o.catalogo_servicios?.nombre || '-')}</div>
+        <div style="font-size:12px;color:#aaa;margin-bottom:10px">${esc(o.descripcion || '')}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:11px;color:#aaa">👤 ${esc(o.profiles?.nombre || 'Sin asignar')}</div>
+          <div style="font-size:11px;color:#aaa">📅 ${o.fecha_programada ? formatDate(o.fecha_programada) : '-'}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select class="form-select" style="height:32px;font-size:11px;flex:1" onchange="cambiarEstado('${o.id}',this.value)">
+            <option value="pendiente" ${o.estado==='pendiente'?'selected':''}>Pendiente</option>
+            <option value="en_camino" ${o.estado==='en_camino'?'selected':''}>En camino</option>
+            <option value="en_proceso" ${o.estado==='en_proceso'?'selected':''}>En proceso</option>
+            <option value="completada" ${o.estado==='completada'?'selected':''}>Completada</option>
+            <option value="cancelada" ${o.estado==='cancelada'?'selected':''}>Cancelada</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="editarOrden('${o.id}')">Editar</button>
+        </div>
+      </div>
+    `).join('') : '<div class="empty-state" style="padding:20px 0">Sin órdenes</div>';
+  });
+}
+
+function openModal(){
+  editandoId = null;
+  document.getElementById('modal-titulo').textContent = 'Nueva Orden de Trabajo';
+  document.getElementById('o-cliente').selectedIndex = 0;
+  document.getElementById('o-tipo').selectedIndex = 0;
+  document.getElementById('o-tec').value = '';
+  document.getElementById('o-prio').value = 'normal';
+  document.getElementById('o-fecha').value = '';
+  document.getElementById('o-monto').value = '';
+  document.getElementById('o-desc').value = '';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+function editarOrden(id){
+  const o = ordenes.find(x => x.id === id);
+  if (!o) return;
+  editandoId = id;
+  document.getElementById('modal-titulo').textContent = 'Editar Orden de Trabajo';
+  document.getElementById('o-cliente').value = o.cliente_id || '';
+  document.getElementById('o-tipo').value = o.servicio_id || '';
+  document.getElementById('o-tec').value = o.tecnico_id || '';
+  document.getElementById('o-prio').value = o.prioridad || 'normal';
+  document.getElementById('o-fecha').value = o.fecha_programada ? String(o.fecha_programada).split('T')[0] : '';
+  document.getElementById('o-monto').value = o.monto ?? '';
+  document.getElementById('o-desc').value = o.descripcion || '';
+  document.getElementById('modal').classList.add('open');
+}
+
+async function guardarOrden(){
+  const clienteId = document.getElementById('o-cliente').value;
+  if (!clienteId) { showToast('Selecciona un cliente (crea uno primero en Clientes)', true); return; }
+  const payload = {
+    cliente_id: clienteId,
+    servicio_id: document.getElementById('o-tipo').value || null,
+    tecnico_id: document.getElementById('o-tec').value || null,
+    prioridad: document.getElementById('o-prio').value,
+    fecha_programada: document.getElementById('o-fecha').value || null,
+    monto: document.getElementById('o-monto').value ? parseFloat(document.getElementById('o-monto').value) : null,
+    descripcion: document.getElementById('o-desc').value.trim() || null
+  };
+
+  const query = editandoId
+    ? sb.from('ordenes_trabajo').update(payload).eq('id', editandoId)
+    : sb.from('ordenes_trabajo').insert(payload);
+  const { error } = await query;
+  if (error) { supaError(error, 'Error guardando la orden'); return; }
+
+  showToast(editandoId ? 'Orden actualizada' : 'Orden creada');
+  closeModal();
+  cargarOrdenes();
+}
+
+async function cambiarEstado(id, estado){
+  const payload = { estado };
+  if (estado === 'completada') payload.fecha_completada = new Date().toISOString();
+  const { error } = await sb.from('ordenes_trabajo').update(payload).eq('id', id);
+  if (error) { supaError(error, 'No se pudo cambiar el estado'); cargarOrdenes(); return; }
+  cargarOrdenes();
+}
+
+(async function init(){
+  const session = await window.vjcAuthReady;
+  if (!session) return;
+  await cargarCatalogos();
+  cargarOrdenes();
+})();
+</script>
+
+<script>
+(function(){
+  var toggle = document.getElementById('mobToggle');
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  function openSidebar(){
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  }
+  if(toggle) toggle.addEventListener('click', openSidebar);
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+  // close on nav link click
+  var navLinks = document.querySelectorAll('.nav-item, .logout-btn');
+  navLinks.forEach(function(l){ l.addEventListener('click', closeSidebar); });
+})();
+</script>
+</body>
+</html>

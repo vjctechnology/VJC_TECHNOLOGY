@@ -1,0 +1,6 @@
+# Herramientas de build de Tailwind — no necesarias en el sitio publicado,
+# css/tailwind.css ya es el resultado compilado.
+node_modules
+src
+package.json
+package-lock.json

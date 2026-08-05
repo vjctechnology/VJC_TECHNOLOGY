@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VJC Technology — Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+
+<aside class="sidebar">
+  <div class="sidebar-logo">VJC Technology</div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item active"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="servicios.html" class="nav-item"><span class="nav-icon">⚙</span> Servicios Activos</a>
+    <a href="clientes.html" class="nav-item"><span class="nav-icon">👥</span> Clientes</a>
+    <a href="ordenes.html" class="nav-item"><span class="nav-icon">📋</span> Órdenes de Trabajo</a>
+    <a href="cotizaciones.html" class="nav-item"><span class="nav-icon">💲</span> Cotizaciones</a>
+    <a href="inventario.html" class="nav-item"><span class="nav-icon">📦</span> Inventario</a>
+    <a href="agenda.html" class="nav-item"><span class="nav-icon">📅</span> Agenda</a>
+    <a href="notas.html" class="nav-item"><span class="nav-icon">💬</span> Notas internas</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">JC</div>
+    <div>
+      <div class="user-name">Juan Colega</div>
+      <div class="user-role">Técnico</div>
+    </div>
+  </div>
+  <button class="logout-btn" onclick="vjcLogout()">
+    <span class="nav-icon">⎋</span> Cerrar sesión
+  </button>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <button class="mob-toggle" id="mobToggle" aria-label="Abrir menú">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <h1 class="page-title">Dashboard</h1>
+    <div class="topbar-date" id="topbar-date"></div>
+  </header>
+
+  <section class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Servicios este mes</div>
+      <div class="stat-value" id="stat-servicios">-</div>
+      <div class="stat-sub" id="stat-servicios-sub"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Completados</div>
+      <div class="stat-value" id="stat-completados">-</div>
+      <div class="stat-sub" id="stat-completados-sub"></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">En proceso</div>
+      <div class="stat-value" id="stat-proceso">-</div>
+      <div class="stat-sub">Órdenes en curso</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="stat-label">Ingresos estimados</div>
+      <div class="stat-value" id="stat-ingresos">-</div>
+      <div class="stat-sub">Órdenes completadas este mes</div>
+    </div>
+  </section>
+
+  <div class="two-col">
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Servicios más solicitados</h2>
+      </div>
+      <ul class="bar-list" id="bar-list"></ul>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <h2 class="card-title">Actividad reciente</h2>
+      </div>
+      <ul class="activity-list" id="activity-list"></ul>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="card-header">
+      <h2 class="card-title">Próximas citas hoy</h2>
+    </div>
+    <table class="table">
+      <thead><tr><th>Hora</th><th>Cliente</th><th>Servicio</th><th>Técnico</th><th>Estado</th></tr></thead>
+      <tbody id="tbody-citas-hoy"></tbody>
+    </table>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+
+<script>
+(function(){
+  var toggle = document.getElementById('mobToggle');
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  function openSidebar(){
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  }
+  if(toggle) toggle.addEventListener('click', openSidebar);
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+  // close on nav link click
+  var navLinks = document.querySelectorAll('.nav-item, .logout-btn');
+  navLinks.forEach(function(l){ l.addEventListener('click', closeSidebar); });
+})();
+</script>
+
+<script>
+document.getElementById('topbar-date').textContent =
+  new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+const dotColor = { pendiente: 'yellow', en_camino: 'yellow', en_proceso: 'purple', completada: 'green', cancelada: 'red', enviada: 'yellow', aceptada: 'green', rechazada: 'red' };
+const estadoLabelDashboard = { pendiente: 'pendiente', en_camino: 'en camino', en_proceso: 'en proceso', completada: 'completada', cancelada: 'cancelada', enviada: 'enviada', aceptada: 'aceptada', rechazada: 'rechazada' };
+
+function tiempoRelativo(fecha){
+  const diffMs = Date.now() - new Date(fecha).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return 'Justo ahora';
+  if (min < 60) return `Hace ${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `Hace ${h} hora${h!==1?'s':''}`;
+  const d = Math.floor(h / 24);
+  return d === 1 ? 'Ayer' : `Hace ${d} días`;
+}
+
+async function cargarStats(){
+  const { data, error } = await sb.rpc('get_dashboard_stats');
+  if (error) { supaError(error, 'Error cargando estadísticas'); return; }
+  const s = (data && data[0]) || { servicios_este_mes:0, completados:0, en_proceso:0, ingresos_estimados:0 };
+  document.getElementById('stat-servicios').textContent = s.servicios_este_mes;
+  document.getElementById('stat-servicios-sub').textContent = 'Órdenes creadas este mes';
+  document.getElementById('stat-completados').textContent = s.completados;
+  const pct = s.servicios_este_mes ? Math.round(100 * s.completados / s.servicios_este_mes) : 0;
+  document.getElementById('stat-completados-sub').textContent = `${pct}% de avance`;
+  document.getElementById('stat-proceso').textContent = s.en_proceso;
+  document.getElementById('stat-ingresos').textContent = 'S/ ' + Number(s.ingresos_estimados || 0).toLocaleString('es-PE', { minimumFractionDigits: 2 });
+}
+
+async function cargarServiciosMasSolicitados(){
+  const { data, error } = await sb.rpc('get_servicios_mas_solicitados');
+  const list = document.getElementById('bar-list');
+  if (error) { supaError(error, 'Error cargando servicios más solicitados'); return; }
+  if (!data || !data.length) { list.innerHTML = '<div class="empty-state">Sin datos todavía.</div>'; return; }
+  list.innerHTML = data.slice(0, 5).map(r => `
+    <li><span class="bar-label">${esc(r.servicio)}</span><div class="bar-track"><div class="bar-fill" style="width:${r.porcentaje}%"></div></div><span class="bar-pct">${r.porcentaje}%</span></li>
+  `).join('');
+}
+
+async function cargarActividadReciente(){
+  const { data, error } = await sb.from('v_actividad_reciente').select('*');
+  const list = document.getElementById('activity-list');
+  if (error) { supaError(error, 'Error cargando actividad reciente'); return; }
+  if (!data || !data.length) { list.innerHTML = '<div class="empty-state">Sin actividad todavía.</div>'; return; }
+  list.innerHTML = data.map(a => `
+    <li class="activity-item"><div class="act-dot ${dotColor[a.estado] || 'purple'}"></div><div><div class="act-text">${a.tipo === 'orden' ? 'Orden' : 'Cotización'} ${estadoLabelDashboard[a.estado] || a.estado} — ${esc(a.cliente)}</div><div class="act-time">${tiempoRelativo(a.ocurrido_en)}</div></div></li>
+  `).join('');
+}
+
+async function cargarCitasHoy(){
+  const { data, error } = await sb.from('v_citas_hoy').select('*');
+  const tbody = document.getElementById('tbody-citas-hoy');
+  if (error) { supaError(error, 'Error cargando citas de hoy'); return; }
+  if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">Sin citas para hoy</div></td></tr>'; return; }
+  const badgeClass = { confirmada: 'green', en_camino: 'yellow', pendiente: 'purple', cancelada: 'red' };
+  const badgeLabel = { confirmada: 'Confirmada', en_camino: 'En camino', pendiente: 'Pendiente', cancelada: 'Cancelada' };
+  tbody.innerHTML = data.map(c => `
+    <tr><td>${(c.hora_inicio||'').slice(0,5)}</td><td>${esc(c.cliente||'-')}</td><td>${esc(c.servicio||'-')}</td><td>${esc(c.tecnico||'-')}</td><td><span class="badge ${badgeClass[c.estado]||'purple'}">${badgeLabel[c.estado]||c.estado}</span></td></tr>
+  `).join('');
+}
+
+(async function init(){
+  const session = await window.vjcAuthReady;
+  if (!session) return;
+  cargarStats();
+  cargarServiciosMasSolicitados();
+  cargarActividadReciente();
+  cargarCitasHoy();
+})();
+</script>
+</body>
+</html>

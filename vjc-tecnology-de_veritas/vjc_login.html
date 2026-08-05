@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VJC Technology — Iniciar sesión</title>
+  <link href="favicon.svg" rel="icon" type="image/svg+xml"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #eeeef8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 28px 36px;
+    }
+
+    /* Logo */
+    .logo {
+      font-size: 15px;
+      font-weight: 700;
+      color: #9b7de0;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0;
+      text-decoration: none;
+      display: inline-block;
+      cursor: pointer;
+    }
+    .logo:hover { color: #7c3aed; }
+
+    /* Center card */
+    .center {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 80px);
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 44px 44px 40px;
+      width: 100%;
+      max-width: 430px;
+    }
+
+    .card-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #9b7de0;
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    /* Fields */
+    .field-group { margin-bottom: 20px; }
+
+    .field-label {
+      display: block;
+      font-size: 13px;
+      color: #7a9ab5;
+      margin-bottom: 7px;
+    }
+
+    .field-input {
+      width: 100%;
+      height: 50px;
+      border: 1.5px solid #d8e4ee;
+      border-radius: 10px;
+      padding: 0 14px;
+      font-size: 14px;
+      color: #333;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .field-input:focus { border-color: #9b7de0; }
+
+    /* Password wrapper */
+    .pwd-wrap { position: relative; }
+
+    .pwd-wrap .field-input { padding-right: 46px; }
+
+    .eye-btn {
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #7a9ab5;
+      padding: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    .eye-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: #7a9ab5;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* Button */
+    .login-btn {
+      width: 100%;
+      height: 50px;
+      background: #9b7de0;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 10px;
+      letter-spacing: 0.02em;
+      transition: background 0.2s;
+    }
+
+    .login-btn:hover { background: #8b6cd0; }
+    .login-btn:active { background: #7a5bbf; }
+  </style>
+  <!-- ================= MOBILE RESPONSIVE ================= -->
+  <style>
+    @media (max-width: 600px) {
+      body {
+        padding: 16px 16px 32px;
+        align-items: center;
+      }
+      .logo {
+        font-size: 13px;
+        margin-bottom: 0;
+        align-self: flex-start;
+      }
+      .center {
+        min-height: calc(100vh - 60px);
+        padding: 0;
+      }
+      .card {
+        padding: 28px 20px 24px;
+        border-radius: 14px;
+        max-width: 100%;
+      }
+      .card-title {
+        font-size: 22px;
+        margin-bottom: 22px;
+      }
+      .field-input {
+        height: 48px;
+        font-size: 16px; /* evita zoom en iOS */
+        border-radius: 9px;
+      }
+      .login-btn {
+        height: 48px;
+        font-size: 15px;
+        border-radius: 9px;
+      }
+      .field-group { margin-bottom: 16px; }
+    }
+
+    @media (max-width: 380px) {
+      body { padding: 12px 12px 24px; }
+      .card { padding: 22px 14px 20px; }
+      .card-title { font-size: 20px; }
+    }
+  </style>
+
+  <!-- ================= MOBILE FIXES (responsive corrections) ================= -->
+  <style>
+    /* ── Global safety net ── */
+    html { -webkit-text-size-adjust: 100%; }
+    img, svg, video, canvas { max-width: 100%; height: auto; }
+    * { -webkit-tap-highlight-color: transparent; }
+
+    /* Prevent any element from forcing horizontal scroll */
+    @media (max-width: 1023px) {
+      body { overflow-x: hidden; }
+      section, header, footer { max-width: 100vw; }
+    }
+
+    /* ── Header ── */
+    @media (max-width: 1023px) {
+      header .max-w-[1800px] { gap: 0.5rem; }
+      header a span.text-2xl { font-size: 1.15rem; }
+    }
+    #mobileMenu a.mobile-nav-link { -webkit-tap-highlight-color: transparent; }
+
+    /* ── Tablet/phone: tame oversized headings ── */
+    @media (max-width: 480px) {
+      h1, .font-display.text-5xl, .font-display.text-6xl { font-size: clamp(1.6rem, 7vw, 2.1rem) !important; line-height: 1.2 !important; }
+      h2.font-display { font-size: clamp(0.9rem, 4vw, 1.2rem) !important; }
+    }
+
+    /* ── Hero slider: avoid cramped text + buttons on very small screens ── */
+    @media (max-width: 420px) {
+      .wb-orb, .ctc-orb-1, .ctc-orb-2 { transform: scale(0.7); }
+    }
+
+    /* ── Stat chips (contact section): keep readable on tiny screens ── */
+    @media (max-width: 360px) {
+      .ctc-chip { padding-left: 0.25rem; padding-right: 0.25rem; }
+      .ctc-chip .text-base { font-size: 0.875rem; }
+    }
+
+    /* ── Service cards row (Soporte/Atención/Capacitación/Acompañamiento): stack cleanly on mobile ── */
+    @media (max-width: 640px) {
+      .svc-item { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+    }
+
+    /* ── Servicios destacados (responsive): encabezado 5% más arriba, grid 2x2 sin descripción ── */
+    @media (max-width: 1023px) {
+      #svc-destacados { padding-top: 1.2rem !important; padding-bottom: 1.2rem !important; }
+      #svcHeader { margin-bottom: 1rem !important; }
+
+      #svcMobileGrid { align-items: start; gap: 0.6rem !important; }
+      #svcMobileGrid .svc2-card { padding: 0.35rem !important; }
+      #svcMobileGrid .svc2-icon-wrap { width: 44px; height: 44px; margin: 0 auto 6px auto; }
+      #svcMobileGrid .svc2-icon-wrap svg { width: 20px; height: 20px; }
+      #svcMobileGrid p { display: none !important; } /* se oculta la descripción en el grid 2x2 */
+      #svcMobileGrid .svc2-title {
+        font-size: 0.8rem !important;
+        white-space: normal;
+        overflow-wrap: break-word;
+        line-height: 1.25;
+        margin-bottom: 0 !important;
+        max-width: 100%;
+      }
+    }
+
+    /* ── Compresión vertical general entre secciones (móvil/tablet) ── */
+    @media (max-width: 1023px) {
+      /* Diseño de páginas web (banner degradado) */
+      #disenoWebContent { padding-top: 1.52rem !important; padding-bottom: 1.52rem !important; }
+      #disenoWebContent p { line-height: 1.6 !important; }
+
+      /* Aplicaciones web / dashboard animado */
+      #webapp { padding-top: 1.2rem !important; padding-bottom: 1.2rem !important; }
+      #webapp .wb-title { margin-bottom: 1rem !important; }
+      #webapp .wb-title h2 { font-size: 2.14rem !important; } /* text-4xl (2.25rem) reducido 5% */
+      #webappCols { gap: 1.5rem !important; }
+      #webapp .relative.flex-1 { min-height: 295px !important; overflow: hidden; }
+      #wbLastRecords { display: none !important; }
+      #webapp .wb-right-col { padding-top: 0.75rem !important; }
+      #webapp .wb-right-col > p:first-child { margin-bottom: 1rem !important; }
+      #webapp .wb-right-col .space-y-0 > div { padding-top: 0.4rem !important; padding-bottom: 0.4rem !important; }
+
+      /* Intro servicios: imagen + "¿Los problemas tecnológicas afectan...?" */
+      #serviciosIntro { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+      #serviciosIntro .intro-servicios-title { margin-bottom: 0.75rem !important; }
+      #serviciosIntro .intro-servicios-divider { margin-bottom: 0.75rem !important; }
+      #serviciosIntro .intro-servicios-text p { margin-bottom: 0.6rem !important; }
+      #serviciosIntro .grid { gap: 1.25rem !important; }
+    }
+
+    /* ── Quote calculator: avoid tiny tap targets ── */
+    @media (max-width: 480px) {
+      #qtyMinusBtn, #qtyPlusBtn { width: 2.25rem; height: 2.25rem; }
+    }
+
+    /* ── Floating mockup windows (Aplicaciones web section): clip overflow on small screens ── */
+    @media (max-width: 640px) {
+      #webapp .relative.z-10 { overflow: visible; }
+    }
+
+    /* ── Footer: ensure columns don't overflow ── */
+    @media (max-width: 480px) {
+      footer { word-break: break-word; }
+    }
+
+    /* ── Form fields: prevent iOS zoom-on-focus (font-size must be >=16px) ── */
+    @media (max-width: 1023px) {
+      input, select, textarea { font-size: 16px !important; }
+    }
+
+    /* ── Buttons: comfortable tap size on touch devices ── */
+    @media (max-width: 640px) {
+      button, a.inline-flex, a.flex { min-height: 2.25rem; }
+    }
+
+    /* ── Decorative blurred orbs: clamp size so they never exceed viewport ── */
+    @media (max-width: 640px) {
+      [class*="-orb"], [class*="orb-"] { max-width: 90vw; max-height: 90vw; }
+    }
+
+    /* ── Números flotantes: sección de servicios destacados ── */
+    @keyframes floatNum {
+      0%   { opacity: 0; transform: translateY(30px); }
+      20%  { opacity: 0.18; }
+      80%  { opacity: 0.12; }
+      100% { opacity: 0; transform: translateY(-50px); }
+    }
+    .floating-num {
+      position: absolute;
+      font-family: 'DM Sans', monospace;
+      font-weight: 700;
+      color: #7c3aed;
+      opacity: 0;
+      animation: floatNum ease-in-out infinite;
+      pointer-events: none;
+      user-select: none;
+      z-index: 1;
+    }
+    /* ════════════════════════════════════════════════
+       OCULTAR en PC los nuevos elementos mobile
+    ════════════════════════════════════════════════ */
+    @media (min-width: 1024px) {
+      #mobileNavOverlay { display:none !important; }
+      #mobileHero       { display:none !important; }
+      #searchBtn        { display:flex !important; align-items:center !important; justify-content:center !important; }
+    }
+
+    /* ════════════════════════════════════════════════
+       NUEVO RESPONSIVE — solo max-width:1023px
+       El PC no ve NADA de este bloque
+    ════════════════════════════════════════════════ */
+    @media (max-width: 1023px) {
+
+      /* Ocultar elementos PC */
+      #navWrapper > div:first-child { display:none !important; }
+      #langMenu                     { display:none !important; }
+      header nav.hidden             { display:none !important; }
+      #mobileMenu                   { display:none !important; }
+      main.splide-hero              { display:none !important; }
+
+      /* Header */
+      #siteHeader {
+        position:sticky !important; top:0 !important; z-index:100 !important;
+        background:#ffffff !important;
+        border-bottom:1px solid #e2e8f0 !important;
+        box-shadow:0 1px 8px rgba(0,0,0,.07) !important;
+        padding:0 1rem !important;
+        height:56px !important;
+        display:flex !important; align-items:center !important;
+      }
+      #headerInner {
+        width:100% !important; display:flex !important;
+        align-items:center !important;
+        justify-content:space-between !important;
+        flex-wrap:nowrap !important; gap:0 !important;
+      }
+      /* "VJC" en violeta + "technology" en minúscula, mismo color */
+      header a[aria-label] span        { font-size:1.18rem !important; font-weight:700 !important; color:#7c3aed !important; white-space:nowrap !important; }
+      header a[aria-label] span > span { display:inline !important; color:#7c3aed !important; text-transform:lowercase !important; font-weight:600 !important; }
+      /* Lupa + hamburger */
+      #headerRight { gap:2px !important; }
+      #mobileMenuBtn {
+        width:42px !important; height:42px !important;
+        border:none !important; background:transparent !important;
+        color:#0f172a !important; border-radius:8px !important;
+        display:flex !important; align-items:center !important; justify-content:center !important;
+      }
+      #mobileMenuBtn:hover  { background:#f1f5f9 !important; }
+      #searchBoxWrap        { display:none !important; }
+      #searchBtn            { display:none !important; }
+
+      /* Overlay nav */
+      #mobileNavOverlay {
+        position:fixed; inset:0; z-index:9999;
+        background:#ffffff;
+        display:flex; flex-direction:column;
+        transform:translateX(100%);
+        transition:transform .32s cubic-bezier(.16,1,.3,1);
+        overflow-y:auto;
+      }
+      #mobileNavOverlay.mob-open { transform:translateX(0); }
+      .mob-nav-header {
+        display:flex; align-items:center; justify-content:space-between;
+        padding:0 1.25rem; height:56px;
+        border-bottom:1px solid #f1f5f9; flex-shrink:0;
+      }
+      .mob-nav-logo  { font-size:1.18rem; font-weight:700; color:#7c3aed; }
+      .mob-nav-close {
+        width:42px; height:42px; border:none; background:transparent;
+        display:flex; align-items:center; justify-content:center;
+        cursor:pointer; border-radius:8px; color:#0f172a;
+      }
+      .mob-nav-close:hover { background:#f1f5f9; }
+      .mob-nav-main { padding:.5rem 0; flex:1; }
+      .mob-nav-link {
+        display:flex; align-items:center; justify-content:space-between;
+        padding:1rem 1.5rem; font-size:1.08rem; font-weight:400;
+        color:#0f172a; text-decoration:none;
+        border-bottom:1px solid #f8fafc; min-height:52px;
+        transition:background .15s, color .15s;
+      }
+      .mob-nav-link:active { background:#f5f3ff; color:#7c3aed; }
+      .mob-nav-link svg    { opacity:.35; flex-shrink:0; }
+      .mob-nav-sep         { height:1px; background:#e2e8f0; margin:.5rem 1.5rem; }
+      .mob-nav-secondary   { padding:.25rem 0 2rem; }
+      .mob-nav-sec-link {
+        display:flex; align-items:center;
+        padding:.75rem 1.5rem; font-size:.95rem; font-weight:300;
+        color:#64748b; text-decoration:none; min-height:44px;
+        transition:color .15s;
+      }
+      .mob-nav-sec-link:active { color:#7c3aed; }
+      .mob-nav-pe { display:flex; align-items:center; gap:.4rem; padding:.75rem 1.5rem; font-size:.88rem; color:#94a3b8; }
+
+      /* ── Hero mobile: carrusel infinito ── */
+      #mobileHero {
+        position:relative;
+        overflow:hidden;          /* clave: recorta los slides fuera de pantalla */
+        width:100%;
+        display:block !important;
+      }
+      .mob-carousel {
+        display:flex;
+        /* width se fija en JS tras clonar: (total+2)*100% */
+        will-change:transform;
+        /* transición aplicada por JS en cada slide */
+      }
+      .mob-slide {
+        flex:0 0 100vw;           /* cada slide ocupa exactamente el viewport */
+        width:100vw;
+        min-height:56vw;
+        display:flex;
+        align-items:center;
+        padding:2rem 1.5rem 2rem;
+        position:relative;
+        overflow:hidden;
+        background-size:cover;
+        background-position:right center;
+      }
+      .mob-slide-inner {
+        position:relative; z-index:2; max-width:82%;
+        pointer-events:none; /* el clic pasa a las flechas */
+      }
+      .mob-slide-inner a { pointer-events:auto; }
+      .mob-slide-title {
+        font-size:.82rem;
+        font-weight:700; color:#fff;
+        line-height:1.25; margin-bottom:.55rem;
+        text-transform:uppercase; letter-spacing:-.01em;
+        white-space:normal; overflow-wrap:break-word;
+      }
+      .mob-slide-desc {
+        font-size:.78rem; font-weight:300;
+        color:rgba(255,255,255,.88);
+        line-height:1.55; margin-bottom:1rem; max-width:34ch;
+      }
+      .mob-slide-btn {
+        display:inline-flex; align-items:center;
+        padding:.4rem .88rem;
+        background:rgba(255,255,255,.18);
+        border:1px solid rgba(255,255,255,.5);
+        color:#fff; font-size:.61rem; font-weight:600;
+        border-radius:4px; text-decoration:none;
+        backdrop-filter:blur(6px);
+        transition:background .18s;
+      }
+      .mob-slide-btn:active { background:rgba(255,255,255,.34); }
+      /* Overlay oscuro sobre imagen */
+      .mob-slide-overlay {
+        position:absolute; inset:0; z-index:1;
+        background:linear-gradient(to right,rgba(0,0,0,.58) 0%,rgba(0,0,0,.22) 100%);
+        pointer-events:none;
+      }
+      /* Flechas semitransparentes, solo el símbolo < > */
+      .mob-arrow {
+        position:absolute; top:50%; transform:translateY(-50%);
+        z-index:10; cursor:pointer;
+        background:none; border:none; padding:8px 6px;
+        color:rgba(255,255,255,.55);
+        transition:color .2s;
+        line-height:1;
+      }
+      .mob-arrow:active { color:rgba(255,255,255,.9); }
+      .mob-arrow-prev { left:6px; }
+      .mob-arrow-next { right:6px; }
+      .mob-arrow svg { display:block; }
+      /* Sin dots */
+      .mob-dots { display:none; }
+
+      /* Generales */
+      .max-w-[1700px].mx-auto { padding-left:1rem !important; padding-right:1rem !important; }
+      [class*="-orb"],[class*="orb-"] { max-width:90vw; max-height:90vw; overflow:hidden; }
+      .ctc-orb-1,.ctc-orb-2 { opacity:.08 !important; }
+      #chatWindow { max-width:min(360px,calc(100vw - 2rem)) !important; max-height:min(520px,calc(100dvh - 6rem)) !important; }
+      footer { word-break:break-word; }
+      footer .flex.flex-col.md\:flex-row { flex-direction:column !important; text-align:center; gap:.75rem !important; }
+      #webapp .relative.flex-1 { min-height:300px; overflow:hidden; }
+      #webapp .wb-win-back { width:78% !important; top:16px !important; }
+      #webapp .wb-win-front { width:76% !important; }
+      #webapp .wb-notif-pop { display:none; }
+      #vjcLegalModal .vjc-modal-box { max-width:min(660px,calc(100vw - 2rem)) !important; max-height:85vh !important; width:100% !important; }
+      #vjcLegalModal .flex.gap-1 { overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+      #vjcLegalModal .flex.gap-1::-webkit-scrollbar { display:none; }
+      /* ── Cookie banner: rediseño responsive para móvil ── */
+      #vjcCookieBanner {
+        padding: .75rem 1rem .85rem !important;
+        gap: .5rem !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+      }
+      #vjcCookieBanner .vjc-ck-inner {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: .6rem !important;
+        padding: 0 !important;
+        flex-wrap: wrap !important;
+      }
+      #vjcCookieBanner .vjc-ck-text h3 { font-size: 13px !important; margin-bottom: 3px !important; }
+      #vjcCookieBanner .vjc-ck-text p  { font-size: 11.5px !important; line-height: 1.5 !important; }
+      #vjcCookieBanner .vjc-ck-btns {
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        gap: .4rem !important;
+        justify-content: stretch !important;
+      }
+      #vjcCookieBanner .vjc-ck-btns button {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+        padding: 7px 6px !important;
+        font-size: 12px !important;
+        white-space: nowrap !important;
+        border-radius: 6px !important;
+      }
+      #vjcCookieBanner .vjc-ck-close { top: 8px !important; right: 10px !important; }
+      .ctc-btn, button[type="submit"] { min-height:2.75rem; touch-action:manipulation; }
+      #qtyMinusBtn,#qtyPlusBtn { min-width:2.5rem !important; min-height:2.5rem !important; touch-action:manipulation; }
+      .svc-item { flex-shrink:0; padding-left:.6rem !important; padding-right:.6rem !important; }
+    }
+
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+  <a href="index.html" class="logo">VJC Technology</a>
+
+  <div class="center">
+    <div class="card">
+      <div class="card-title">Iniciar sesión</div>
+
+      <div class="field-group">
+        <label class="field-label" for="email">Correo electrónico</label>
+        <input class="field-input" type="email" id="email" autocomplete="email" />
+      </div>
+
+      <div class="field-group">
+        <label class="field-label" for="pwd">Contraseña</label>
+        <div class="pwd-wrap">
+          <input class="field-input" type="password" id="pwd" autocomplete="current-password" />
+          <button class="eye-btn" type="button" onclick="togglePwd()" aria-label="Mostrar contraseña">
+            <svg id="eye-icon" viewBox="0 0 24 24">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <p id="loginError" style="display:none; color:#e14b4b; font-size:13px; margin-top:-10px; margin-bottom:14px;">
+        Correo o contraseña incorrectos.
+      </p>
+
+      <button class="login-btn" type="button" onclick="vjcFakeLogin()">Iniciar sesión</button>
+    </div>
+  </div>
+
+  <script>
+    // ===================================================================
+    // ⚠️ BORRAR URGENTE CUANDO SE IMPLEMENTE EL BACKEND ⚠️
+    // Login simulado / temporal (SIN backend todavía).
+    // Credenciales hardcodeadas SOLO para revisión visual del dashboard.
+    // Reemplazar por la llamada real a la API de autenticación
+    // (validación de usuario, manejo de sesión/token, etc.) apenas
+    // ===================================================================
+    // Login real con Supabase Auth
+    // ===================================================================
+    const SUPABASE_URL = 'https://oxtggipvbgkblygynpkn.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94dGdnaXB2YmdrYmx5Z3lucGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4MDM0NDUsImV4cCI6MjEwMTM3OTQ0NX0.P-O1en1Gv2hBq-JWftmq8OJXhrcAfjvNhHa_xi9YmAU';
+
+    const { createClient } = supabase;
+    const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    async function vjcFakeLogin() {
+      const email = document.getElementById('email').value.trim();
+      const pwd = document.getElementById('pwd').value;
+      const errorMsg = document.getElementById('loginError');
+      const btn = document.querySelector('.login-btn');
+
+      btn.disabled = true;
+      btn.textContent = 'Iniciando sesión...';
+      errorMsg.style.display = 'none';
+
+      const { error } = await _supabase.auth.signInWithPassword({ email, password: pwd });
+
+      if (error) {
+        errorMsg.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Iniciar sesión';
+      } else {
+        window.location.href = 'https://vjc-fixed-8oca.vercel.app/vjc_dashboard/dashboard.html';
+      }
+    }
+  </script>
+
+  <script>
+    function togglePwd() {
+      const input = document.getElementById('pwd');
+      const icon = document.getElementById('eye-icon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.innerHTML = `
+          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        `;
+      } else {
+        input.type = 'password';
+        icon.innerHTML = `
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        `;
+      }
+    }
+  </script>
+
+</body>
+</html>

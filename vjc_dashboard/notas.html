@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VJC Technology — Notas Internas</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">VJC Technology</div>
+  <nav class="sidebar-nav">
+    <a href="dashboard.html" class="nav-item"><span class="nav-icon">▦</span> Dashboard</a>
+    <a href="servicios.html" class="nav-item"><span class="nav-icon">⚙</span> Servicios Activos</a>
+    <a href="clientes.html" class="nav-item"><span class="nav-icon">👥</span> Clientes</a>
+    <a href="ordenes.html" class="nav-item"><span class="nav-icon">📋</span> Órdenes de Trabajo</a>
+    <a href="cotizaciones.html" class="nav-item"><span class="nav-icon">💲</span> Cotizaciones</a>
+    <a href="inventario.html" class="nav-item"><span class="nav-icon">📦</span> Inventario</a>
+    <a href="agenda.html" class="nav-item"><span class="nav-icon">📅</span> Agenda</a>
+    <a href="notas.html" class="nav-item active"><span class="nav-icon">💬</span> Notas internas</a>
+  </nav>
+  <div class="sidebar-user">
+    <div class="user-avatar">JC</div>
+    <div><div class="user-name">Juan Colega</div><div class="user-role">Técnico</div></div>
+  </div>
+  <button class="logout-btn" onclick="vjcLogout()">
+    <span class="nav-icon">⎋</span> Cerrar sesión
+  </button>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <button class="mob-toggle" id="mobToggle" aria-label="Abrir menú">
+      <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <h1 class="page-title">Notas Internas</h1>
+  </header>
+
+  <!--
+    Nota de implementación: el mock original simulaba un chat por canales, pero la tabla real
+    (notas_internas) es una libreta de notas —no tiene canales ni mensajes—, así que esta página
+    ahora se conecta a eso: una nota con título/contenido, opcionalmente asociada a un cliente.
+    Cada quien ve sus propias notas (admin ve todas), según las políticas RLS de policies.sql.
+  -->
+  <div class="two-col" style="align-items:start">
+
+    <section class="card">
+      <div class="card-header"><h2 class="card-title" id="form-titulo">Nueva nota</h2></div>
+      <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="n-titulo" placeholder="Ej: Seguimiento cliente"/></div>
+      <div class="form-group"><label class="form-label">Cliente relacionado (opcional)</label><select class="form-select" id="n-cliente"><option value="">Ninguno</option></select></div>
+      <div class="form-group"><label class="form-label">Contenido</label><textarea class="form-textarea" id="n-contenido" placeholder="Escribe tu nota..." style="min-height:140px"></textarea></div>
+      <button class="btn btn-primary" style="width:100%" onclick="guardarNota()">Guardar nota</button>
+      <button class="btn btn-secondary" style="width:100%;margin-top:8px;display:none" id="btn-cancelar-edicion" onclick="cancelarEdicion()">Cancelar edición</button>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><h2 class="card-title">Notas del equipo</h2></div>
+      <div id="notas-list" style="display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 240px);overflow-y:auto"></div>
+    </section>
+
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="app.js"></script>
+<script>
+let notas = [];
+let clientesCache = [];
+let currentUserId = null;
+let editandoId = null;
+
+async function cargarClientesDropdown(){
+  const { data } = await sb.from('clientes').select('id,nombre').order('nombre');
+  clientesCache = data || [];
+  document.getElementById('n-cliente').innerHTML = '<option value="">Ninguno</option>' + clientesCache.map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+}
+
+async function cargarNotas(){
+  const { data, error } = await sb.from('notas_internas')
+    .select('*, profiles(nombre), clientes(nombre)')
+    .order('created_at', { ascending: false });
+  if (error) { supaError(error, 'Error cargando notas'); return; }
+  notas = data || [];
+  renderNotas();
+}
+
+function renderNotas(){
+  const list = document.getElementById('notas-list');
+  if (!notas.length) { list.innerHTML = '<div class="empty-state">Sin notas todavía.</div>'; return; }
+  list.innerHTML = notas.map(n => `
+    <div style="background:#f9f8fd;border-radius:10px;padding:14px 16px;position:relative">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <div style="font-weight:700;font-size:13.5px;color:#2d2d4e">${esc(n.titulo)}</div>
+        ${n.autor_id === currentUserId ? `<button class="btn btn-secondary btn-sm" onclick="editarNota('${n.id}')">Editar</button>` : ''}
+      </div>
+      <div style="font-size:13px;color:#555;white-space:pre-wrap;margin-bottom:8px">${esc(n.contenido || '')}</div>
+      <div style="font-size:11px;color:#aaa">
+        ${esc(n.profiles?.nombre || 'Usuario')}${n.clientes?.nombre ? ' · Cliente: ' + esc(n.clientes.nombre) : ''} · ${formatDate(n.created_at)}
+      </div>
+    </div>
+  `).join('');
+}
+
+async function guardarNota(){
+  const titulo = document.getElementById('n-titulo').value.trim();
+  if (!titulo) { showToast('Escribe un título', true); return; }
+  const payload = {
+    titulo,
+    contenido: document.getElementById('n-contenido').value.trim() || null,
+    cliente_id: document.getElementById('n-cliente').value || null
+  };
+
+  let error;
+  if (editandoId) {
+    ({ error } = await sb.from('notas_internas').update(payload).eq('id', editandoId));
+  } else {
+    payload.autor_id = currentUserId;
+    ({ error } = await sb.from('notas_internas').insert(payload));
+  }
+  if (error) { supaError(error, 'Error guardando la nota'); return; }
+
+  showToast(editandoId ? 'Nota actualizada' : 'Nota guardada');
+  cancelarEdicion();
+  cargarNotas();
+}
+
+function editarNota(id){
+  const n = notas.find(x => x.id === id);
+  if (!n) return;
+  editandoId = id;
+  document.getElementById('form-titulo').textContent = 'Editar nota';
+  document.getElementById('n-titulo').value = n.titulo || '';
+  document.getElementById('n-contenido').value = n.contenido || '';
+  document.getElementById('n-cliente').value = n.cliente_id || '';
+  document.getElementById('btn-cancelar-edicion').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelarEdicion(){
+  editandoId = null;
+  document.getElementById('form-titulo').textContent = 'Nueva nota';
+  document.getElementById('n-titulo').value = '';
+  document.getElementById('n-contenido').value = '';
+  document.getElementById('n-cliente').value = '';
+  document.getElementById('btn-cancelar-edicion').style.display = 'none';
+}
+
+(async function init(){
+  const session = await window.vjcAuthReady;
+  if (!session) return;
+  currentUserId = session.user.id;
+  await cargarClientesDropdown();
+  cargarNotas();
+})();
+</script>
+
+<script>
+(function(){
+  var toggle = document.getElementById('mobToggle');
+  var sidebar = document.querySelector('.sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  function openSidebar(){
+    sidebar.classList.add('mob-open');
+    overlay.classList.add('open');
+  }
+  function closeSidebar(){
+    sidebar.classList.remove('mob-open');
+    overlay.classList.remove('open');
+  }
+  if(toggle) toggle.addEventListener('click', openSidebar);
+  if(overlay) overlay.addEventListener('click', closeSidebar);
+  // close on nav link click
+  var navLinks = document.querySelectorAll('.nav-item, .logout-btn');
+  navLinks.forEach(function(l){ l.addEventListener('click', closeSidebar); });
+})();
+</script>
+</body>
+</html>
