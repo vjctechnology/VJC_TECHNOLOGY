@@ -5,7 +5,7 @@
 
 const SUPABASE_URL = 'https://oxtggipvbgkblygynpkn.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94dGdnaXB2YmdrYmx5Z3lucGtuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4MDM0NDUsImV4cCI6MjEwMTM3OTQ0NX0.P-O1en1Gv2hBq-JWftmq8OJXhrcAfjvNhHa_xi9YmAU';
-const LOGIN_URL = 'https://vjc-fixed-8oca.vercel.app/vjc-tecnology-de_veritas/vjc_login.html';
+const LOGIN_URL = 'https://vjc-technology.vercel.app/vjc-tecnology-de_veritas/vjc_login.html';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 window.sb = sb;
